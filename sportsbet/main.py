@@ -11,11 +11,11 @@ import time
 
 #insert_bet('Team 1', 'Team 2', 'Test Sport', 'Over 11.5', 151, -151, 150, 131, -3, scrape_time, game_time)
 
-#clear_bets_table()
-#clear_messages_table()
-#clear_pms_table()
+# clear_bets_table()
+# clear_messages_table()
+# clear_pms_table()
 #view_bet_table()
-# view_message_table()
+#view_message_table()
 #view_pm_table()
 
 
@@ -29,26 +29,26 @@ def run_scraper():
     subprocess.run([sys.executable, 'run_scrape.py'], check=True)
 
 
-def main():
-    while True:
-        print("Running Discord bot...")
-        run_discord_bot()  # Run the Discord bot first
-        print("Running scraper...")
-        run_scraper()  # Then run the scraper
-
-
 # def main():
-#     # Create two separate processes, passing the manager's lock
-#     p1 = Process(target=run_discord_bot)
-#     p2 = Process(target=run_scraper)
-#
-#     # Start both processes
-#     p1.start()
-#     p2.start()
-#
-#     # Wait for both processes to finish
-#     p1.join()
-#     p2.join()
+#     while True:
+#         print("Running Discord bot...")
+#         run_discord_bot()  # Run the Discord bot first
+#         print("Running scraper...")
+#         run_scraper()  # Then run the scraper
+
+
+def main():
+    # Create two separate processes, passing the manager's lock
+    p1 = Process(target=run_discord_bot)
+    p2 = Process(target=run_scraper)
+
+    # Start both processes
+    p1.start()
+    p2.start()
+
+    # Wait for both processes to finish
+    p1.join()
+    p2.join()
 
 if __name__ == "__main__":
     main()
