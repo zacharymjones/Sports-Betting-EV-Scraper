@@ -3,6 +3,18 @@ from sportsbet.scraper import *
 from sportsbet.sql import *
 import time
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import text
+
+
+def is_db_available():
+    try:
+        # PRAGMA command to check for locks
+        result = connection.execute(text('PRAGMA busy_timeout = 5000'))  # Wait up to 5000 ms if the database is busy
+        return True
+    except sa.exc.OperationalError as e:
+        print(f"Database is locked or unavailable: {e}")
+        return False
+
 
 def run_scrape():
     engine = sa.create_engine('sqlite:///database.db')
@@ -24,7 +36,7 @@ def run_scrape():
                 # Iterate over each row of the filtered df and store in the database
 
                 today_date = datetime.now().strftime('%Y-%m-%d')
-                game_time_str = game['time']
+                game_time_str = game['time'].replace('Today • ', '')
                 game_time_with_date = f"{today_date} {game_time_str}"
                 for _, row in df.iterrows():
                     team_1 = game['teams'][0]
@@ -38,10 +50,23 @@ def run_scrape():
                     EV = row['EV']
                     scrape_time = datetime.now()
                     game_time = datetime.strptime(game_time_with_date, '%Y-%m-%d %I:%M %p')
-                    insert_bet(team_1, team_2, sport_name, bet_type,
-                               sharp_odds, sharp_odds_opp, fair_odds, rec_odds, EV, scrape_time, game_time)
+
+                    while True:
+                        if is_db_available():
+                            try:
+                                insert_bet(team_1, team_2, sport_name, bet_type, sharp_odds, sharp_odds_opp, fair_odds, rec_odds, EV, scrape_time, game_time)
+                                break
+                            except Exception as e:
+                                print('Failed to insert bet')
+                                time.sleep(2)
+                        else:
+                            print('DB is busy. Retrying...')
+                            time.sleep(2)
     print('Finished scraping.')
-try:
-    run_scrape()
-except Exception as e:
-    print(f'Error running run_scrape: {e}')
+
+while True:
+    try:
+            run_scrape()
+    except Exception as e:
+        print(f'Error running run_scrape: {e}')
+    time.sleep(5)
