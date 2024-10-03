@@ -11,7 +11,7 @@ from sportsbet.book_calculations import *
 from table2ascii import table2ascii, Alignment, PresetStyle
 import asyncio
 from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy.sql import text
 
 engine = sa.create_engine('sqlite:///database.db')
 connection = engine.connect()
@@ -19,6 +19,14 @@ connection = engine.connect()
 metadata = sa.MetaData()
 
 
+async def is_db_available():
+    try:
+        # PRAGMA command to check for locks
+        result = connection.execute(text('PRAGMA busy_timeout = 5000'))  # Wait up to 5000 ms if the database is busy
+        return True
+    except sa.exc.OperationalError as e:
+        print(f"Database is locked or unavailable: {e}")
+        return False
 
 
 # Initialize the Discord bot
@@ -633,26 +641,29 @@ async def update_bets_appendix():
         print(e)
 
 async def send_bets_to_discord_loop():
-    try:
-        await cleanup_bets()
-        await asyncio.sleep(0.1)
-        await send_bets_to_discord()  # Call your existing function to send bets to Discord
-        await asyncio.sleep(0.1)
-        await update_bets_appendix()
-        await asyncio.sleep(0.1)
-        await send_or_update_dms()
-        await asyncio.sleep(0.1)
-    except Exception as e:
-        print(f'Error runing send_Bets_to_discord_loop:{e}')
-
+    while True:
+        try:
+            if await is_db_available():
+                await cleanup_bets()
+                await asyncio.sleep(0.1)
+                await send_bets_to_discord()  # Call your existing function to send bets to Discord
+                await asyncio.sleep(0.1)
+                await update_bets_appendix()
+                await asyncio.sleep(0.1)
+                await send_or_update_dms()
+                await asyncio.sleep(0.1)
+            else:
+                print('Database is busy, retrying later...')
+                await asyncio.sleep(5)
+        except Exception as e:
+            print(f'Error running send_Bets_to_discord_loop:{e}')
+        await asyncio.sleep(5)
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
 
     # Run the Discord sending loop asynchronously
-    await send_bets_to_discord_loop()
-
-    await bot.close()
+    asyncio.create_task(send_bets_to_discord_loop())
 
 # Run the bot
 bot.run(TOKEN)
